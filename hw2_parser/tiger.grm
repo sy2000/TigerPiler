@@ -1,0 +1,225 @@
+structure A = Absyn
+structure S = Symbol
+%%
+%term
+    EOF 
+  | ID of string
+  | INT of int | STRING of string 
+  | COMMA | COLON | SEMICOLON | LPAREN | RPAREN | LBRACK | RBRACK 
+  | LBRACE | RBRACE | DOT 
+  | PLUS | MINUS | TIMES | DIVIDE | EQ | NEQ | LT | LE | GT | GE
+  | AND | OR | ASSIGN
+  | ARRAY | IF | THEN | ELSE | WHILE | FOR | TO | DO | LET | IN | END | OF 
+  | BREAK | NIL
+  | FUNCTION | VAR | TYPE | UNARY_MINUS 
+
+%nonterm  program of A.exp
+	| array_create of A.exp
+	| control_statement of A.exp
+	| dec_list of A.dec list 
+	| dec_single of A.dec 
+	| exp of A.exp 
+	| exp_list of A.exp list
+	| exp_lvalue of A.var
+	| exp_seq of (A.exp * A.pos) list
+	| function_dec of A.dec 
+	| operator_boolean of A.exp
+	| operator_logical_compare of A.exp
+	| operator_numeric of A.exp
+	| record_single of (S.symbol * A.exp * pos)
+    | record_list of (S.symbol * A.exp * pos) list
+	| record_full of A.exp
+	| type_dec of A.dec 
+	| type_field_multi of A.field list
+	| type_field_single of A.field
+	| type_val of A.ty
+	| var_dec of A.dec 
+
+
+%pos int
+%verbose
+%start program
+%eop EOF
+%noshift EOF
+
+%name Tiger
+
+%keyword WHILE FOR TO BREAK LET IN END FUNCTION VAR TYPE ARRAY IF THEN ELSE 
+	DO OF NIL
+
+%left PLUS MINUS TIMES DIVIDE AND OR UNARY_MINUS
+%right ASSIGN OF ID THEN ELSE DO TO LPAREN LBRACK LBRACE
+%nonassoc EQ GE GT LE LT NEQ
+%prefer THEN ELSE LPAREN
+
+%value ID ("bogus")
+%value INT (1)
+%value STRING ("")
+
+%%
+program : exp               (exp)
+
+exp
+	: NIL							(A.NilExp)
+	| INT							(A.IntExp(INT))
+	| STRING						(A.StringExp(STRING, STRINGleft))
+	| array_create					(array_create)
+	| control_statement				(control_statement)
+	| exp_lvalue					(A.VarExp(exp_lvalue))
+	| operator_boolean				(operator_boolean)
+	| operator_logical_compare		(operator_logical_compare)
+	| operator_numeric				(operator_numeric)
+	| LET dec_list IN exp_seq END	(A.LetExp ({decs=dec_list, body=A.SeqExp(exp_seq),pos=LETleft}))
+	| LPAREN exp_seq RPAREN			(A.SeqExp(exp_seq))
+	| record_full					(record_full)
+	| exp_lvalue ASSIGN exp			(A.AssignExp({var=exp_lvalue, exp=exp, pos=exp_lvalueleft}))
+	| ID LPAREN exp_list RPAREN		(A.CallExp({func=S.symbol(ID), args=exp_list, pos=IDleft}))
+	| MINUS exp %prec UNARY_MINUS	(A.OpExp({left=A.IntExp(0), oper=A.MinusOp, right=exp, pos=MINUSleft})) 
+
+array_create
+	: ID LBRACK exp RBRACK OF exp	(A.ArrayExp{
+		typ = S.symbol ID, 
+		size = exp1, 
+		init = exp2, 
+		pos = IDleft})
+
+control_statement
+	: IF exp THEN exp					(A.IfExp({test = exp1, then' = exp2, else' = NONE, pos = IFleft}))
+	| IF exp THEN exp ELSE exp			(A.IfExp({test = exp1, then' = exp2, else' = SOME(exp3), pos = IFleft}))
+	| WHILE exp DO exp					(A.WhileExp({test = exp1, body = exp2, pos = WHILEleft}))
+	| FOR ID ASSIGN exp TO exp DO exp	(A.ForExp({
+		var = S.symbol(ID), 
+		escape = ref false,
+		lo = exp1, 
+		hi = exp2,
+		body = exp3, 
+		pos = FORleft}))
+	| BREAK								(A.BreakExp(BREAKleft))
+
+dec_list
+	:						(nil)
+	| dec_list dec_single	(dec_single::dec_list)
+
+dec_single
+	: function_dec			(function_dec)
+	| type_dec				(type_dec)
+	| var_dec				(var_dec)
+
+
+exp_list
+	:						([])
+	| exp					([exp])
+	| exp_list COMMA exp	(exp_list @ [exp])
+
+
+exp_lvalue	(* TODO ID LBRACK exp RBRACK *)
+	: ID							(A.SimpleVar(S.symbol(ID), IDleft))
+	| ID LBRACK exp RBRACK 			(A.SubscriptVar(A.SimpleVar(S.symbol(ID), IDleft), exp, LBRACKleft))
+	| exp_lvalue DOT ID				(A.FieldVar(exp_lvalue, S.symbol(ID),IDleft))
+	| exp_lvalue LBRACK exp RBRACK	(A.SubscriptVar(exp_lvalue, exp, LBRACKleft))
+
+exp_seq
+	:						([])
+	| exp					([(exp, expleft)])
+	| exp_seq SEMICOLON exp (exp_seq @ [(exp, expleft)]) 
+
+function_dec
+	: FUNCTION ID LPAREN type_field_multi RPAREN EQ exp   (A.FunctionDec[{
+		name = S.symbol(ID), 
+		params = type_field_multi,
+		result = NONE, 
+		body = exp, 
+		pos = FUNCTIONleft}])
+	| FUNCTION ID LPAREN type_field_multi RPAREN COLON ID EQ exp    (A.FunctionDec[{
+		name = S.symbol(ID1), 
+		params = type_field_multi,
+		result = SOME(S.symbol(ID2), ID2left),
+		body = exp, 
+		pos = FUNCTIONleft}])
+
+
+operator_numeric
+	: exp PLUS exp		(A.OpExp({left = exp1, oper = A.PlusOp, right = exp2, pos = exp1left}))
+	| exp MINUS exp		(A.OpExp({left = exp1, oper = A.MinusOp, right = exp2, pos = exp1left}))
+	| exp TIMES exp		(A.OpExp({left = exp1, oper = A.TimesOp, right = exp2, pos = exp1left}))
+	| exp DIVIDE exp	(A.OpExp({left = exp1, oper = A.DivideOp, right = exp2, pos = exp1left}))
+
+operator_boolean
+	:  exp AND exp		(A.IfExp({test = exp1, then' = exp2, else' = SOME(A.IntExp(0)), pos = exp1left }))
+	|  exp OR exp		(A.IfExp({test = exp1, then' = A.IntExp(1), else' = SOME(exp2), pos = exp1left }))
+
+operator_logical_compare
+	: exp EQ exp		(A.OpExp({left = exp1, oper = A.EqOp, right = exp2, pos = exp1left}))
+	| exp GE exp		(A.OpExp({left = exp1, oper = A.GeOp, right = exp2, pos = exp1left}))
+	| exp GT exp		(A.OpExp({left = exp1, oper = A.GtOp, right = exp2, pos = exp1left}))
+	| exp LE exp		(A.OpExp({left = exp1, oper = A.LeOp, right = exp2, pos = exp1left}))
+	| exp LT exp		(A.OpExp({left = exp1, oper = A.LtOp, right = exp2, pos = exp1left}))
+	| exp NEQ exp		(A.OpExp({left = exp1, oper = A.NeqOp, right = exp2, pos = exp1left}))
+
+
+
+
+
+
+record_single
+	: ID EQ exp										(S.symbol ID, exp, IDleft)
+
+record_full
+	: ID LBRACE record_single record_list RBRACE 	(A.RecordExp {
+		fields = [record_single] @ record_list, 
+		typ = S.symbol ID1, 
+		pos = ID1left})
+
+record_list
+	:												(nil)
+    | COMMA record_single record_list				([record_single] @ record_list)
+
+
+
+
+
+
+
+
+type_dec
+	: TYPE ID EQ type_val 	(A.TypeDec([{
+		name = S.symbol(ID),
+		ty = type_val,
+		pos = TYPEleft}]))
+
+type_field_single: ID COLON ID  ({name = S.symbol(ID1),
+                          escape = ref false,
+                          typ = S.symbol(ID2),
+                          pos = ID1left})
+
+
+type_field_multi
+	:						([])
+	|  type_field_single	([type_field_single])
+	|  type_field_multi COMMA type_field_single (type_field_multi @ [type_field_single])
+
+
+
+type_val
+	: ID								(A.NameTy(S.symbol(ID), IDleft))
+	| LBRACE type_field_multi RBRACE	(A.RecordTy(type_field_multi))
+	| ARRAY OF ID						(A.ArrayTy(S.symbol(ID), ARRAYleft))
+
+
+
+
+var_dec
+	: VAR ID ASSIGN exp				(A.VarDec({
+		name = S.symbol(ID),
+		escape = ref false,
+		typ = NONE,
+		init = exp,
+		pos = VARleft}))
+	| VAR ID COLON ID ASSIGN exp	(A.VarDec({
+		name = S.symbol(ID1),
+		escape = ref false,
+		typ = SOME(S.symbol(ID2), ID2left),
+		init = exp,
+		pos = VARleft}))
+
+
