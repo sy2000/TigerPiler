@@ -24,7 +24,6 @@ fun eof() =
 	let 
 		val pos = hd(!linePos)
 	in
-		lineNum := 0;
 		if (!inside_string = true) then (
 			ErrorMsg.error (!last_open_string_pos) ("unclosed string detected at EOF");
 			raise LexFailure
