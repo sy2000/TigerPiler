@@ -8,7 +8,7 @@ structure Semant :> SEMANT = struct
 	structure A = Absyn
 	structure E = Env
 	structure P = PrintAbsyn
-	structure S = S
+	structure S = Symbol
 	structure T = Types
 	structure Tr = Translate
 	exception SemantErrorMsg
@@ -39,7 +39,7 @@ structure Semant :> SEMANT = struct
 			T.UNIT => ()
 			| _ => ErrorMsg.error pos "expected unit!"
 
-	fun checkSameType ({expr_arg=exp1,ty=type1}, {expr_arg=exp2,ty=type2}, pos) =
+	fun checkSameType ({exp=exp1,ty=type1}, {exp=exp2,ty=type2}, pos) =
 		if type1 = type2 then 
 			()
 		else 
@@ -96,9 +96,9 @@ structure Semant :> SEMANT = struct
 	fun transExp(venv, tenv, exp)  =    
 	let 
 		fun	trexp (A.NilExp) = {exp=Tr.nilExp(), ty=T.NIL}
-		| trexp (A.VarExp var) = trvar var
 		| trexp (A.IntExp i) = {exp=Tr.nilExp(), ty=T.INT}
 		| trexp (A.StringExp (str, pos)) = {exp=Tr.nilExp(), ty=T.STRING}
+		| trexp (A.VarExp var) = trvar var
 		| trexp (A.OpExp {left, oper, right, pos}) =
 			if oper=A.PlusOp orelse oper=A.MinusOp orelse oper=A.TimesOp orelse oper=A.DivideOp then (
 				print " trexp (A.OpExp 1\n"; 
@@ -125,10 +125,10 @@ structure Semant :> SEMANT = struct
 					val my_then = trexp(then')
 				in 
 					print ("A.IfExp... NONE else'\n"); 
-				(*
-					checkInt(my_test);
-					checkUnit(my_then);
-				*)
+				
+					checkInt(my_test, pos);
+					checkUnit(my_then, pos);
+				
 					{exp=Tr.nilExp(), ty=T.STRING}
 					(*{exp=(Tr.IfThenExp(#exp my_test, #exp my_then)), ty=Types.Unit}*)
 				end
@@ -139,11 +139,11 @@ structure Semant :> SEMANT = struct
 					val my_else = trexp(else')
 				in
 					print ("A.IfExp... SOME else'\n"); 
-				(*
-					checkInt(my_test);
-					checkUnit(my_then);
-					checkSameType(my_then, my_else)
-				*)
+				
+					checkInt(my_test, pos);
+					checkUnit(my_then, pos);
+					checkSameType(my_then, my_else, pos);
+				
 					{exp=Tr.nilExp(), ty=T.STRING}
 					(*{exp=(Tr.ifThenElseExp(#exp test', #exp then'', #exp else'')), ty=Types.UNIT}*)
 				end		
@@ -152,30 +152,57 @@ structure Semant :> SEMANT = struct
 		| trexp (A.IfExp {test, then', else', pos}) 		= {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
 		*)
 		| trexp (A.SeqExp exps) 							=
-			let 
-				fun parse_sequence_expressions [] = {exp=(), ty=Types.UNIT}
-                    | parse_sequence_expressions ((exp, pos)::nil) = trexp exp
-                    | parse_sequence_expressions ((exp, pos)::rst) = (trexp exp; parse_sequence_expressions rst)
-			in
-				print ("A.SeqExp...\n");
-				parse_sequence_expressions(exps)
-				(* {exp=Tr.nilExp(), ty=T.STRING}) (* TODO *) *)
-			end
-		| trexp (A.CallExp {func, args, pos})				= {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
+		let 
+			fun parse_sequence_expressions [] = {exp=(), ty=Types.UNIT}
+                | parse_sequence_expressions ((exp, pos)::nil) = trexp exp
+                | parse_sequence_expressions ((exp, pos)::rst) = (trexp exp; parse_sequence_expressions rst)
+		in
+			print ("A.SeqExp...\n");
+			parse_sequence_expressions(exps)
+			(* {exp=Tr.nilExp(), ty=T.STRING}) (* TODO *) *)
+		end
+		| trexp (A.CallExp {func, args, pos})				= 
+		let
+			fun check_args([], [], pos) = ()
+			| check_args(formals, [], pos) = ErrorMsg.error pos "too few args"
+			| check_args([], args, pos) = ErrorMsg.error pos "too much args"
+			| check_args(formal::formals, arg::args, pos) = 
+			(
+				let 
+					val {exp, ty} = trexp arg
+				in 
+					if formal = ty
+						then ()
+					else 
+						ErrorMsg.error pos (S.name(func) ^ ": wrong type arg")
+				end;
+				check_args(formals, args, pos)
+			)
+		in
+			(case S.look(venv, func)
+			of NONE => (
+				ErrorMsg.error pos ("expression is not a function :" ^ S.name(func));
+				{exp=(), ty=Types.UNIT}
+				)
+			| SOME(Env.FunEntry {formals, result}) => (
+				check_args(formals, args, pos);
+				{exp=(), ty=actual_ty(result)}
+				)
+			)
+		end
+
 		| trexp (A.WhileExp {test, body, pos}) 				= {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
 		| trexp (A.RecordExp {fields, typ, pos}) 			= {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
 		| trexp (A.AssignExp {var, exp, pos}) 				= {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
 		| trexp (A.ForExp {var, escape, lo, hi, body, pos}) = {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
 		| trexp (A.BreakExp pos) 							= {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
 		| trexp (A.LetExp {decs, body, pos}) 				= (* {exp=Tr.nilExp(), ty=T.STRING} (* TODO *) *)
- 
 			let 
 				val {venv=venv', tenv=tenv'} = transDecs(venv, tenv, decs)
 			in
 				print ("A.LetExp...\n"); 
 				transExp(venv', tenv', body)
 			end
-
 		| trexp (A.ArrayExp {typ, size, init, pos}) 		= {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
 		and
 		trvar (A.SimpleVar(id,pos)) = 
@@ -196,7 +223,6 @@ structure Semant :> SEMANT = struct
 			checkInt(trexp exp, pos);
 			{exp=Tr.nilExp(), ty=T.UNIT}
 		)
-
     in
 		print ("transExp body...\n");
 		trexp(exp)
