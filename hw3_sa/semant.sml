@@ -24,7 +24,7 @@ structure Semant :> SEMANT = struct
     | type_to_string(T.RECORD(flds, uniq)) = "rec "
     | type_to_string(T.UNIT) = "unit"
 
-	fun type_exist (tenv, n, pos) = 
+	fun type_exists (tenv, n, pos) = 
 	let 
 		val ret=S.look (tenv, n)
 	in
@@ -52,11 +52,20 @@ structure Semant :> SEMANT = struct
 			T.UNIT => ()
 			| _ => ErrorMsg.error pos "expected unit!"
 
-	fun checkSameType ({exp=exp1,ty=type1}, {exp=exp2,ty=type2}, pos) =
+	fun exps_same_type ({exp=exp1,ty=type1}, {exp=exp2,ty=type2}, pos) =
 		if type1 = type2 then 
 			()
 		else 
-			ErrorMsg.error pos ("checkSameType: Expressions are not the same type")
+			ErrorMsg.error pos ("exps_same_type: Expressions are not the same type")
+
+	fun same_type (type1, type2, pos) =
+		(case type1 = type2 of
+			true => true
+			| false => (
+				ErrorMsg.error pos ("same_type: false");
+				false
+			)
+		)
 
   	(* this function tests whether the given type can be used as an argument for an =<> operation *)
   	fun type_can_be_tested_for_equality({exp, ty}, pos) = 
@@ -153,7 +162,7 @@ structure Semant :> SEMANT = struct
 					print ("A.IfExp... SOME else'\n"); 
 					checkInt(my_test, pos);
 					checkUnit(my_then, pos);
-					checkSameType(my_then, my_else, pos);
+					exps_same_type(my_then, my_else, pos);
 					{exp=Tr.nilExp(), ty=T.UNIT}
 				end		
 			)
@@ -176,8 +185,8 @@ structure Semant :> SEMANT = struct
 				let 
 					val {exp, ty} = trexp arg
 				in 
-					if formal = ty
-						then ()
+					if formal = ty then 
+						()
 					else 
 						ErrorMsg.error pos (S.name(func) ^ ": wrong type arg")
 				end;
@@ -187,12 +196,16 @@ structure Semant :> SEMANT = struct
 			print ("A.CallExp...\n");
 			(case S.look(venv, func) of 
 				NONE => (
-					ErrorMsg.error pos ("expression is not a function :" ^ S.name(func));
+					ErrorMsg.error pos ("NONE expression is not a function :" ^ S.name(func));
 					{exp=(), ty=Types.UNIT}
 				)
 				| SOME(E.FunEntry {formals, result}) => (
 					check_args(formals, args, pos);
 					{exp=(), ty=actual_ty(result)}
+				)
+				| _ => (
+					ErrorMsg.error pos ("_ unknown function " ^ S.name(func));
+					{exp=(), ty=Types.UNIT}
 				)
 			)
 		end
@@ -206,20 +219,51 @@ structure Semant :> SEMANT = struct
 			checkUnit(my_body, pos);
 			{exp=(), ty=Types.UNIT}
 		end
-
-		| trexp (A.RecordExp {fields, typ, pos}) 			= {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
-
+		| trexp (A.LetExp {decs, body, pos}) 				=
+		let 
+			val {venv=venv', tenv=tenv'} = transDecs(venv, tenv, decs)
+		in
+			print ("A.LetExp...\n"); 
+			transExp(venv', tenv', body)
+		end
+		| trexp (A.RecordExp {fields, typ, pos}) 			= 
+		let 
+			val my_type_exists = type_exists(tenv, typ, pos)
+			val result = actual_ty my_type_exists
+			val field_names = map #1 fields
+			val fields_types = map trexp (map #2 fields)
+			val actual_types = map #ty fields_types
+		in 
+			print ("A.RecordExp...\n"); 
+			case result of
+				T.RECORD(my_symbol, my_unique) =>
+				let 
+					val found_field_names = map #1 my_symbol
+					val found_field_types = map actual_ty (map #2 my_symbol)
+				in
+					if field_names = found_field_names then 
+						if (ListPair.all
+								(fn (ty1, ty2) => same_type (ty1, ty2, pos))
+								(actual_types, found_field_types)) then
+							{exp=Tr.nilExp(), ty=T.RECORD(my_symbol,my_unique)} 
+						else (
+							ErrorMsg.error pos ("field types not consistent: " ^ S.name typ);
+							{exp=Tr.nilExp(),ty=T.RECORD(my_symbol,my_unique)}
+						)
+					else (
+						ErrorMsg.error pos ("field types not consistent: " ^ S.name typ);
+						{exp=Tr.nilExp(),ty=T.RECORD(my_symbol,my_unique)}
+					)
+				end
+				| _ => (
+					ErrorMsg.error pos ("not a valid record type: " ^ S.name typ);
+					{exp=Tr.nilExp(), ty=T.UNIT}
+				)
+		end
 
 		| trexp (A.AssignExp {var, exp, pos}) 				= {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
 		| trexp (A.ForExp {var, escape, lo, hi, body, pos}) = {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
 		| trexp (A.BreakExp pos) 							= {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
-		| trexp (A.LetExp {decs, body, pos}) 				= (* {exp=Tr.nilExp(), ty=T.STRING} (* TODO *) *)
-			let 
-				val {venv=venv', tenv=tenv'} = transDecs(venv, tenv, decs)
-			in
-				print ("A.LetExp...\n"); 
-				transExp(venv', tenv', body)
-			end
 		| trexp (A.ArrayExp {typ, size, init, pos}) 		= {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
 		and
 		trvar (A.SimpleVar(id,pos)) = 

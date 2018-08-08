@@ -20,8 +20,10 @@ structure S = Symbol
 	| dec_single of A.dec 
 	| exp of A.exp 
 	| exp_list of A.exp list
+	| exp_list_tail of A.exp list
 	| exp_lvalue of A.var
-	| exp_seq of (A.exp * A.pos) list
+	| exp_seq of (A.exp * pos) list
+	| exp_seq_tail of (A.exp * pos) list
 	| function_dec of A.dec 
 	| operator_boolean of A.exp
 	| operator_logical_compare of A.exp
@@ -101,7 +103,7 @@ control_statement
 
 dec_list
 	:						(nil)
-	| dec_list dec_single	(dec_single::dec_list)
+	| dec_single dec_list	(dec_single::dec_list)
 
 dec_single
 	: function_dec			(function_dec)
@@ -110,10 +112,12 @@ dec_single
 
 
 exp_list
-	:						([])
-	| exp					([exp])
-	| exp_list COMMA exp	(exp_list @ [exp])
+	:							([])
+	| exp exp_list_tail			(exp::exp_list_tail)
 
+exp_list_tail
+	:							([])
+	| COMMA exp exp_list_tail	(exp::exp_list_tail)
 
 exp_lvalue	(* TODO ID LBRACK exp RBRACK *)
 	: ID							(A.SimpleVar(S.symbol(ID), IDleft))
@@ -123,8 +127,12 @@ exp_lvalue	(* TODO ID LBRACK exp RBRACK *)
 
 exp_seq
 	:						([])
-	| exp					([(exp, expleft)])
-	| exp_seq SEMICOLON exp (exp_seq @ [(exp, expleft)]) 
+	| exp exp_seq_tail		([(exp, expleft)] @ exp_seq_tail)
+
+exp_seq_tail
+	:								([])
+	| SEMICOLON exp exp_seq_tail	([(exp, expleft)] @ exp_seq_tail)
+
 
 function_dec
 	: FUNCTION ID LPAREN type_field_multi RPAREN EQ exp   (A.FunctionDec[{
