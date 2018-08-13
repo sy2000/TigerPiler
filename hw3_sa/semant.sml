@@ -117,6 +117,60 @@ structure Semant :> SEMANT = struct
 					| SOME(typ) => actual_ty(typ)
 			)
 
+	fun my_transTy (tenv, t)=
+	let
+	in
+		print ("my_TransTy: ...\n");
+		case t of
+			A.NameTy (n, pos) => (
+				print ("inside my_transTy, t=NameTy\n");				
+				()
+			)
+			| A.RecordTy fields => (
+				print ("inside my_transTy, t=RecordTy\n");
+				()
+			)
+			| A.ArrayTy (n,pos) => (
+				print ("inside my_transTy, t=ArrayTy\n");
+				()
+			)
+	end
+
+
+
+	fun transTy (tenv, t)=
+	let
+		fun record_types(fields)= 
+			map (
+				fn{name, escape, typ, pos}=> (
+					case SOME(type_exists(tenv, typ, pos)) of
+						SOME t => (name, t)
+						| NONE => (name, Types.UNIT)
+				)
+			) fields
+		fun checkdups(h::l) = (
+			List.exists (
+				fn {name, escape, typ, pos}=> 
+				if (#name h)=name then
+					(ErrorMsg.error pos ("duplicate field: " ^ Symbol.name name);
+					true)
+				else
+					false) l;
+			checkdups(l))
+		| checkdups(_) = ()
+	in
+		print ("TransTy: ...\n");
+		case t of
+			A.NameTy (n, pos) => 
+				type_exists(tenv, n, pos)
+			| A.RecordTy fields => (
+				checkdups(fields);
+				T.RECORD (record_types fields, ref())
+			)
+			| A.ArrayTy (n,pos) => 
+				T.ARRAY(type_exists(tenv, n, pos), ref())
+	end
+
 	fun transExp(venv, tenv, exp)  =    
 	let 
 		fun trexp (A.NilExp) = {exp=Tr.nilExp(), ty=T.NIL}
@@ -325,10 +379,105 @@ structure Semant :> SEMANT = struct
 		)
 
 	end
+	| transDec (venv, tenv, A.TypeDec type_decs) = 
+	let
+		val type_types = map #ty type_decs
+		val type_names = map #name type_decs
+		val first_type = List.hd type_types
+		val first_name = List.hd type_names
+		val nts = map (fn t => my_transTy (tenv, t)) type_types
+	in
+		(case first_type of
+			NameTy => (
+				print ("inside transDec, A.TypeDec ,first type=NameTy\n");
+				print ("first_name=" ^ (S.name first_name) ^ "\n");
+				{tenv=tenv, venv=venv}
+			)
+			(*
+			| RecordTy => (
+				print ("inside transDec, A.TypeDec ,first type=RecordTy");
+				{tenv=tenv, venv=venv}
+			)
+			| ArrayTy => (
+				print ("inside transDec, A.TypeDec ,first type=ArrayTy");
+				{tenv=tenv, venv=venv}
+			)
+			*)
+			(*
+			| _ => (
+				print ("inside transDec, A.TypeDec ,first type=_");
+				{tenv=tenv, venv=venv}
+			)
+			*)
+		)
+	end
 
+(*
+   | transDec (venv, tenv, A.TypeDec type_decs) = 
+          let
+            val type_names = map #name type_decs
+            val type_types = map #ty type_decs
+
+            fun add_type (new_type, env) = 
+				S.enter(env, new_type, T.NAME(new_type,ref(S.look(tenv, new_type))))
+
+            val tenv' = foldr add_type tenv type_names
+            val nts = map (fn t => transTy (tenv', t)) type_types
+
+            fun update_type (n,nt) = 
+			let 
+				val (SOME (T.NAME(_,r))) = S.look(tenv',n)
+			in 
+				r := SOME nt
+            end
+            val _ = app update_type (ListPair.zip(type_names,nts))
+            in
+				print ("transDec A.TypeDec \n");
+                {tenv=tenv', venv=venv}
+            end
+*)
+(*
 	| transDec(venv, tenv, A.TypeDec typeDecs) =
-		(print ("transDec A.TypeDec \n"); {tenv=tenv, venv=venv} ) (* TODO *)
+	let
+		fun updateDecs (venv, tenv) =
+		let
+			fun update_TypeDec {name, ty, pos} = 
+			let
+				fun lookupType(pos, tenv, ty) =
+					case S.look(tenv, ty) of 
+						SOME ty => ty
+						(*
+						| NONE => (
+							ErrorMsg.error pos ("Type '" ^ S.name ty ^ "' is not defined"); 
+							T.NIL
+						)
+						*)
+						| _ =>  (
+							ErrorMsg.error pos ("Type '" ^ S.name ty ^ "' is neither SOME nor NONE"); 
+							T.NIL
+						)
+				val T.NAME(tyName, tyRef) = lookupType (pos, tenv, name)
+				val ty = case ty of 
+					A.NameTy (name, pos) => 
+						T.NAME (name, ref (SOME (lookupType (pos, tenv, name))))
+						| A.RecordTy fields => 
+							T.RECORD (map (fn ({name, escape, typ, pos}) => (name, lookupType (pos, tenv, typ))) fields, ref ())
+						| A.ArrayTy (name, pos) => 
+							T.ARRAY (lookupType (pos, tenv, name), ref ())
+			in
+				tyRef := SOME(ty)
+			end
+		in
+			app update_TypeDec typeDecs
+		end
 
+		fun enterTypeHeader ({name, ty, pos}, tenv) = S.enter (tenv, name, T.NAME (name, ref NONE))
+		val tenv' = foldl enterTypeHeader tenv typeDecs
+	in
+		updateDecs (venv, tenv');
+		{tenv=tenv', venv=venv}
+	end
+*)
 	| transDec(venv, tenv, A.FunctionDec[{name, params, body, pos, result=SOME(rt,pos1)}]) = 
 		(print ("transDec A.FunctionDec \n"); {tenv=tenv, venv=venv} ) (* TODO *)
 	| transDec(venv, tenv, _) = 

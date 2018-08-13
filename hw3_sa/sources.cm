@@ -3,6 +3,7 @@ Group is
 absyn.sml
 env.sml
 errormsg.sml
+main.sml
 parse.sml
 prabsyn.sml
 semant.sml
