@@ -1,0 +1,21 @@
+#!/bin/bash
+
+image_file=test-image.x86-linux
+test_file="$1"
+silent="$2"
+#echo testing $test_file ...
+
+run_silent () {
+	errors=`sml @SMLload=${image_file} $test_file | grep $test_file | wc -l`
+	if [ $errors -eq 0 ]; then
+		echo "test $test_file passed!"
+	else
+		echo "test $test_file failed with $errors errors!"
+	fi
+}
+
+if [ "$silent" = "silent" ]; then
+	run_silent
+else
+	sml @SMLload=${image_file} $test_file
+fi
