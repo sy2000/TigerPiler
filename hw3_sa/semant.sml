@@ -379,105 +379,55 @@ structure Semant :> SEMANT = struct
 		)
 
 	end
-	| transDec (venv, tenv, A.TypeDec type_decs) = 
-	let
-		val type_types = map #ty type_decs
-		val type_names = map #name type_decs
-		val first_type = List.hd type_types
-		val first_name = List.hd type_names
-		val nts = map (fn t => my_transTy (tenv, t)) type_types
-	in
-		(case first_type of
-			NameTy => (
-				print ("inside transDec, A.TypeDec ,first type=NameTy\n");
-				print ("first_name=" ^ (S.name first_name) ^ "\n");
-				{tenv=tenv, venv=venv}
-			)
-			(*
-			| RecordTy => (
-				print ("inside transDec, A.TypeDec ,first type=RecordTy");
-				{tenv=tenv, venv=venv}
-			)
-			| ArrayTy => (
-				print ("inside transDec, A.TypeDec ,first type=ArrayTy");
-				{tenv=tenv, venv=venv}
-			)
-			*)
-			(*
-			| _ => (
-				print ("inside transDec, A.TypeDec ,first type=_");
-				{tenv=tenv, venv=venv}
-			)
-			*)
-		)
-	end
 
-(*
-   | transDec (venv, tenv, A.TypeDec type_decs) = 
-          let
-            val type_names = map #name type_decs
-            val type_types = map #ty type_decs
 
-            fun add_type (new_type, env) = 
-				S.enter(env, new_type, T.NAME(new_type,ref(S.look(tenv, new_type))))
 
-            val tenv' = foldr add_type tenv type_names
-            val nts = map (fn t => transTy (tenv', t)) type_types
-
-            fun update_type (n,nt) = 
-			let 
-				val (SOME (T.NAME(_,r))) = S.look(tenv',n)
-			in 
-				r := SOME nt
-            end
-            val _ = app update_type (ListPair.zip(type_names,nts))
-            in
-				print ("transDec A.TypeDec \n");
-                {tenv=tenv', venv=venv}
-            end
-*)
-(*
 	| transDec(venv, tenv, A.TypeDec typeDecs) =
 	let
-		fun updateDecs (venv, tenv) =
+		fun updateDecs_for_venv (venv, tenv) =
 		let
-			fun update_TypeDec {name, ty, pos} = 
+			fun updateDec_for_name_type {name, ty, pos} = 
 			let
-				fun lookupType(pos, tenv, ty) =
+				fun find_type(pos, tenv, ty) =
 					case S.look(tenv, ty) of 
-						SOME ty => ty
-						(*
-						| NONE => (
+						SOME ty => (
+							print ("inside find_type, A.TypeDec ,S.look(tenv, ty) is SOME ty\n");
+							ty
+						)
+						| NONE   => (
 							ErrorMsg.error pos ("Type '" ^ S.name ty ^ "' is not defined"); 
 							T.NIL
 						)
-						*)
-						| _ =>  (
-							ErrorMsg.error pos ("Type '" ^ S.name ty ^ "' is neither SOME nor NONE"); 
-							T.NIL
-						)
-				val T.NAME(tyName, tyRef) = lookupType (pos, tenv, name)
+				val T.NAME(tyName, tyRef) = find_type (pos, tenv, name)
 				val ty = case ty of 
-					A.NameTy (name, pos) => 
-						T.NAME (name, ref (SOME (lookupType (pos, tenv, name))))
-						| A.RecordTy fields => 
-							T.RECORD (map (fn ({name, escape, typ, pos}) => (name, lookupType (pos, tenv, typ))) fields, ref ())
-						| A.ArrayTy (name, pos) => 
-							T.ARRAY (lookupType (pos, tenv, name), ref ())
+					A.NameTy (name, pos) => (
+						(* TODO - test it is working *)
+						print ("1 inside updateDec_for_name_type, A.TypeDec ,S.look(tenv, ty) is SOME ty\n");
+						T.NAME (name, ref (SOME (find_type (pos, tenv, name))))
+					)
+					| A.RecordTy fields => (
+						(* TODO - test it is working *)
+						print ("2 inside updateDec_for_name_type, A.TypeDec ,S.look(tenv, ty) is SOME ty\n");
+						T.RECORD (map (fn ({name, escape, typ, pos}) => (name, find_type (pos, tenv, typ))) fields, ref ())
+					)
+					| A.ArrayTy (name, pos) => (
+						print ("inside updateDec_for_name_type, A.TypeDec ,case ty of A.ArrayTy, name=" ^ S.name name ^ "\n");
+						T.ARRAY (find_type (pos, tenv, name), ref ())
+					)
 			in
 				tyRef := SOME(ty)
 			end
 		in
-			app update_TypeDec typeDecs
+			app updateDec_for_name_type typeDecs (* applies updateDec_for_name_type to all elements of typeDecs *)
 		end
 
 		fun enterTypeHeader ({name, ty, pos}, tenv) = S.enter (tenv, name, T.NAME (name, ref NONE))
 		val tenv' = foldl enterTypeHeader tenv typeDecs
 	in
-		updateDecs (venv, tenv');
+		updateDecs_for_venv (venv, tenv');
 		{tenv=tenv', venv=venv}
 	end
-*)
+
 	| transDec(venv, tenv, A.FunctionDec[{name, params, body, pos, result=SOME(rt,pos1)}]) = 
 		(print ("transDec A.FunctionDec \n"); {tenv=tenv, venv=venv} ) (* TODO *)
 	| transDec(venv, tenv, _) = 
