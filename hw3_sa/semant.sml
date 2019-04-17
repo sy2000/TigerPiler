@@ -117,6 +117,80 @@ structure Semant :> SEMANT = struct
 					| SOME(typ) => actual_ty(typ)
 			)
 
+	fun print_actual_ty(ty) =
+		case ty of 
+			T.NIL => (
+				print("print_actual_ty ty=T.NIL\n");
+				T.NIL
+			)
+			| T.RECORD(recs, uniq) => (
+				print("print_actual_ty ty=T.RECORD\n");
+				T.RECORD(recs, uniq)
+			)
+			| T.ARRAY(typ, uniq) => (
+				print("print_actual_ty ty=T.ARRAY\n");
+				print_actual_ty(typ);
+				T.ARRAY(typ, uniq)
+				
+			)
+			| T.UNIT => ( 
+				print("print_actual_ty ty=T.UNIT\n");
+				T.UNIT
+			)
+			| T.INT => (
+				print("print_actual_ty ty=T.INT\n");
+				T.INT
+			)
+			| T.STRING => (
+				print("print_actual_ty ty=T.STRING\n");
+				T.STRING
+			)
+			| T.NAME(sym, typOpt) => (
+				case !typOpt of 
+					NONE => (
+						print("print_actual_ty ty=T.UNIT\n");
+						T.UNIT
+					)
+					| SOME(typ) => print_actual_ty(typ)
+			)
+
+	fun find_actual_type(pos, tenv, my_type) =
+		case S.look (tenv, my_type) of
+			NONE => (
+				ErrorMsg.error pos ("type not defined: " ^ S.name my_type);
+				T.NIL
+			)
+			| SOME found_type =>  (
+				print ("find_actual_type: found my_type= " ^ S.name my_type ^ "\n");
+				print_actual_ty(found_type)
+				(* found_type *)
+			)
+
+	fun compare_actual_types(type1, type2) =
+		case type1 of 
+			T.ARRAY(base_type1, uniq) => (
+				case type2 of
+					T.ARRAY(base_type2, uniq) => (
+						if actual_ty(base_type1) <> actual_ty(base_type2) then
+							T.NIL
+						else
+							actual_ty(base_type1)
+					)
+					| _ => 
+						T.NIL
+			)
+			| _ => (
+				case type2 of
+					T.ARRAY(base_type2, uniq) => 
+						T.NIL
+					| _ => (
+						if actual_ty(type1) <> actual_ty(type2) then
+							T.NIL
+						else
+							actual_ty(type1)
+					)
+			)
+
 	fun my_transTy (tenv, t)=
 	let
 	in
@@ -315,10 +389,42 @@ structure Semant :> SEMANT = struct
 				)
 		end
 
-		| trexp (A.AssignExp {var, exp, pos}) 				= {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
-		| trexp (A.ForExp {var, escape, lo, hi, body, pos}) = {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
-		| trexp (A.BreakExp pos) 							= {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
-		| trexp (A.ArrayExp {typ, size, init, pos}) 		= {exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
+		| trexp (A.AssignExp {var, exp, pos}) 				= 
+		let
+		in
+			{exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
+		end
+		| trexp (A.ForExp {var, escape, lo, hi, body, pos}) = 
+		let
+		in
+			{exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
+		end
+		| trexp (A.BreakExp pos) 							= 
+		let
+		in
+			{exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
+		end
+		| trexp (A.ArrayExp {typ, size, init, pos}) 		= 
+		let
+			val array_type = find_actual_type(pos, tenv, typ)
+
+		in
+			
+			print("trexp A.ArrayExp...\n");
+			case array_type of
+				T.ARRAY(typ, uniq) => (
+					print("found array_type of type \n");
+					{exp=Tr.nilExp(), ty=T.ARRAY(typ, uniq)} (* TODO *)
+				)
+				| _  => (					
+					print("did not find an array_type\n");
+					print_actual_ty(array_type);					
+					{exp=Tr.nilExp(), ty=T.NIL} (* TODO *)
+				)
+			
+			
+		end
+
 		and
 		trvar (A.SimpleVar(id,pos)) = 
 			(case S.look(venv, id) of
@@ -356,7 +462,8 @@ structure Semant :> SEMANT = struct
 		print ("inside transDec A.VarDec typ=NONE...\n");
 		{tenv = tenv, venv=S.enter(venv, name, E.VarEntry{ty=ty})}
 	end
-	(* next case is a case where a type is present, like "var a:int := 6", so we need to check the constraint and init expression are compatible *)
+	(* next case is a case where a type is present, like "var a:int := 6", so we need to check
+	   the constraint and init expression are compatible *)
 	| transDec (venv, tenv, A.VarDec{name,escape,typ=SOME(symb, pos), init, pos=pos1}) =
 	let
 		val {exp, ty} = transExp (venv, tenv, init)
@@ -369,8 +476,14 @@ structure Semant :> SEMANT = struct
 				{tenv=tenv, venv=S.enter(venv, name, Env.VarEntry{ty=ty})}
 			)
 			| SOME my_ty=>  
-				if ty<>my_ty then (
-					ErrorMsg.error pos "type mismatch" ;
+				if compare_actual_types(ty,my_ty) <> T.NIL then (
+
+				(* if actual_ty(ty)<>actual_ty(my_ty) then (   *)
+					ErrorMsg.error pos ("type mismatch symb=" ^ S.name symb);
+					print("showing actual type for ty...\n");
+					print_actual_ty(ty);
+					print("showing actual type for the found my_ty...\n");
+					print_actual_ty(my_ty);
 					{tenv=tenv, venv=S.enter(venv, name, Env.VarEntry{ty=ty})} 
 				) else (
 					();
@@ -415,6 +528,7 @@ structure Semant :> SEMANT = struct
 						T.ARRAY (find_type (pos, tenv, name), ref ())
 					)
 			in
+				print_actual_ty(ty);
 				tyRef := SOME(ty)
 			end
 		in
@@ -423,8 +537,44 @@ structure Semant :> SEMANT = struct
 
 		fun enterTypeHeader ({name, ty, pos}, tenv) = S.enter (tenv, name, T.NAME (name, ref NONE))
 		val tenv' = foldl enterTypeHeader tenv typeDecs
+
+		fun find_type_in_new_tenv {name, ty, pos} = (
+			print("find_type_in_new_tenv now trying to find name=" ^ S.name name ^ "\n");
+			case S.look (tenv', name) of
+				NONE => (
+					print ("type not defined: arrtype");
+					()
+				)
+				| SOME my_ty=>  (
+					print_actual_ty(my_ty);
+					()
+				)
+		)
+
+		fun find_type_in_old_tenv {name, ty, pos} = (
+			print("find_type_in_old_tenv now trying to find name=" ^ S.name name ^ "\n");
+			case S.look (tenv, name) of
+				NONE => (
+					print ("type not defined: " ^ S.name name ^ "\n");
+					()
+				)
+				| SOME my_ty=>  (
+					print_actual_ty(my_ty);
+					()
+				)
+		)
+
+
+
 	in
 		updateDecs_for_venv (venv, tenv');
+		(* does the new type now exist in tenv` ?  need to verify *)
+		print("now trying to find it again...\n");
+		(app find_type_in_old_tenv typeDecs);
+		(app find_type_in_new_tenv typeDecs);
+
+
+
 		{tenv=tenv', venv=venv}
 	end
 
