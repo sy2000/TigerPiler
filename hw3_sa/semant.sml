@@ -391,25 +391,32 @@ structure Semant :> SEMANT = struct
 
 		| trexp (A.AssignExp {var, exp, pos}) 				= 
 		let
+			val  {exp=left,  ty=lefthand_type} = trvar (var)
+			val  {exp=right, ty=righthand_type} = trexp (exp)
 		in
-			{exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
+			print("trexp A.AssignExp...\n");
+			if lefthand_type <> righthand_type then (
+				ErrorMsg.error pos ("trexp A.AssignExp error: lefthand_type <> righthand_type");
+				{exp=Tr.nilExp(), ty=T.UNIT}
+			) else
+				{exp=(), ty=T.UNIT} 
 		end
 		| trexp (A.ForExp {var, escape, lo, hi, body, pos}) = 
 		let
 		in
+			print("trexp A.ForExp...\n");
 			{exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
 		end
 		| trexp (A.BreakExp pos) 							= 
 		let
 		in
+			print("trexp A.BreakExp...\n");
 			{exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
 		end
 		| trexp (A.ArrayExp {typ, size, init, pos}) 		= 
 		let
 			val array_type = find_actual_type(pos, tenv, typ)
-
 		in
-			
 			print("trexp A.ArrayExp...\n");
 			case array_type of
 				T.ARRAY(typ, uniq) => (
