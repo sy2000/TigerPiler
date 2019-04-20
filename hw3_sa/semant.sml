@@ -403,9 +403,15 @@ structure Semant :> SEMANT = struct
 		end
 		| trexp (A.ForExp {var, escape, lo, hi, body, pos}) = 
 		let
+			val translated_lo = trexp lo
+			val translated_hi = trexp hi
+			val translated_body = transExp (venv, tenv, body)
 		in
 			print("trexp A.ForExp...\n");
-			{exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
+			checkInt(translated_lo, pos);
+			checkInt(translated_hi, pos);
+			checkUnit(translated_body, pos);
+			{exp=Tr.nilExp(), ty=T.UNIT} (* TODO *)
 		end
 		| trexp (A.BreakExp pos) 							= 
 		let
