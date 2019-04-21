@@ -120,35 +120,35 @@ structure Semant :> SEMANT = struct
 	fun print_actual_ty(ty) =
 		case ty of 
 			T.NIL => (
-				print("print_actual_ty ty=T.NIL\n");
+				print("******************* print_actual_ty ty=T.NIL\n");
 				T.NIL
 			)
 			| T.RECORD(recs, uniq) => (
-				print("print_actual_ty ty=T.RECORD\n");
+				print("******************* print_actual_ty ty=T.RECORD\n");
 				T.RECORD(recs, uniq)
 			)
 			| T.ARRAY(typ, uniq) => (
-				print("print_actual_ty ty=T.ARRAY\n");
+				print("******************* print_actual_ty ty=T.ARRAY\n");
 				print_actual_ty(typ);
 				T.ARRAY(typ, uniq)
 				
 			)
 			| T.UNIT => ( 
-				print("print_actual_ty ty=T.UNIT\n");
+				print("******************* print_actual_ty ty=T.UNIT\n");
 				T.UNIT
 			)
 			| T.INT => (
-				print("print_actual_ty ty=T.INT\n");
+				print("******************* print_actual_ty ty=T.INT\n");
 				T.INT
 			)
 			| T.STRING => (
-				print("print_actual_ty ty=T.STRING\n");
+				print("******************* print_actual_ty ty=T.STRING\n");
 				T.STRING
 			)
 			| T.NAME(sym, typOpt) => (
 				case !typOpt of 
 					NONE => (
-						print("print_actual_ty ty=T.UNIT\n");
+						print("******************* print_actual_ty ty=T.UNIT\n");
 						T.UNIT
 					)
 					| SOME(typ) => print_actual_ty(typ)
@@ -161,7 +161,7 @@ structure Semant :> SEMANT = struct
 				T.NIL
 			)
 			| SOME found_type =>  (
-				print ("find_actual_type: found my_type= " ^ S.name my_type ^ "\n");
+				print ("******************* find_actual_type: found my_type= " ^ S.name my_type ^ "\n");
 				print_actual_ty(found_type)
 				(* found_type *)
 			)
@@ -194,18 +194,18 @@ structure Semant :> SEMANT = struct
 	fun my_transTy (tenv, t)=
 	let
 	in
-		print ("my_TransTy: ...\n");
+		print ("******************* my_TransTy: ...\n");
 		case t of
 			A.NameTy (n, pos) => (
-				print ("inside my_transTy, t=NameTy\n");				
+				print ("******************* inside my_transTy, t=NameTy\n");				
 				()
 			)
 			| A.RecordTy fields => (
-				print ("inside my_transTy, t=RecordTy\n");
+				print ("******************* inside my_transTy, t=RecordTy\n");
 				()
 			)
 			| A.ArrayTy (n,pos) => (
-				print ("inside my_transTy, t=ArrayTy\n");
+				print ("******************* inside my_transTy, t=ArrayTy\n");
 				()
 			)
 	end
@@ -233,7 +233,7 @@ structure Semant :> SEMANT = struct
 			checkdups(l))
 		| checkdups(_) = ()
 	in
-		print ("TransTy: ...\n");
+		print ("******************* TransTy: ...\n");
 		case t of
 			A.NameTy (n, pos) => 
 				type_exists(tenv, n, pos)
@@ -253,16 +253,16 @@ structure Semant :> SEMANT = struct
 		| trexp (A.VarExp var) = trvar var
 		| trexp (A.OpExp {left, oper, right, pos}) =
 			if oper=A.PlusOp orelse oper=A.MinusOp orelse oper=A.TimesOp orelse oper=A.DivideOp then (
-				print " trexp (A.OpExp 1\n"; 
+				print "******************* trexp (A.OpExp 1\n"; 
 				checkInt(trexp left, pos);
 				checkInt(trexp right, pos);
 				{exp=(), ty=T.INT}
 			) else if oper = A.EqOp orelse oper = A.NeqOp then (
-				print "A.EqOp\n";
+				print "******************* A.EqOp\n";
 				checkOpEq(trexp left, trexp right, pos);
 				{exp=(), ty=T.INT}
 			) else if oper = A.LtOp orelse oper = A.LeOp orelse oper = A.GtOp orelse oper = A.GeOp then (
-				print " trexp (A.OpExp 2\n"; 
+				print "******************* trexp (A.OpExp 2\n"; 
 				checkOpCompare(trexp left, trexp right, pos);
 				{exp=(), ty=T.INT}
 			) else (
@@ -276,7 +276,7 @@ structure Semant :> SEMANT = struct
 					val my_test = trexp(test)
 					val my_then = trexp(then')
 				in 
-					print ("A.IfExp... NONE else'\n"); 
+					print ("******************* A.IfExp... NONE else'\n"); 
 					checkInt(my_test, pos);
 					checkUnit(my_then, pos);
 					{exp=Tr.nilExp(), ty=T.UNIT}
@@ -287,7 +287,7 @@ structure Semant :> SEMANT = struct
 					val my_then = trexp(then')
 					val my_else = trexp(else')
 				in
-					print ("A.IfExp... SOME else'\n"); 
+					print ("******************* A.IfExp... SOME else'\n"); 
 					checkInt(my_test, pos);
 					checkUnit(my_then, pos);
 					exps_same_type(my_then, my_else, pos);
@@ -300,7 +300,7 @@ structure Semant :> SEMANT = struct
                 | parse_sequence_expressions ((exp, pos)::nil) = trexp exp
                 | parse_sequence_expressions ((exp, pos)::rst) = (trexp exp; parse_sequence_expressions rst)
 		in
-			print ("A.SeqExp...\n");
+			print ("******************* A.SeqExp...\n");
 			parse_sequence_expressions(exps)
 		end
 		| trexp (A.CallExp {func, args, pos})				= 
@@ -321,7 +321,7 @@ structure Semant :> SEMANT = struct
 				check_args(formals, args, pos)
 			)
 		in
-			print ("A.CallExp...\n");
+			print ("******************* A.CallExp...\n");
 			(case S.look(venv, func) of 
 				NONE => (
 					ErrorMsg.error pos ("NONE expression is not a function :" ^ S.name(func));
@@ -351,7 +351,7 @@ structure Semant :> SEMANT = struct
 		let 
 			val {venv=venv', tenv=tenv'} = transDecs(venv, tenv, decs)
 		in
-			print ("A.LetExp...\n"); 
+			print ("******************* A.LetExp...\n"); 
 			transExp(venv', tenv', body)
 		end
 		| trexp (A.RecordExp {fields, typ, pos}) 			= 
@@ -362,7 +362,7 @@ structure Semant :> SEMANT = struct
 			val fields_types = map trexp (map #2 fields)
 			val actual_types = map #ty fields_types
 		in 
-			print ("A.RecordExp...\n"); 
+			print ("******************* A.RecordExp...\n"); 
 			case result of
 				T.RECORD(my_symbol, my_unique) =>
 				let 
@@ -394,7 +394,7 @@ structure Semant :> SEMANT = struct
 			val  {exp=left,  ty=lefthand_type} = trvar (var)
 			val  {exp=right, ty=righthand_type} = trexp (exp)
 		in
-			print("trexp A.AssignExp...\n");
+			print("******************* trexp A.AssignExp...\n");
 			if lefthand_type <> righthand_type then (
 				ErrorMsg.error pos ("trexp A.AssignExp error: lefthand_type <> righthand_type");
 				{exp=Tr.nilExp(), ty=T.UNIT}
@@ -407,7 +407,7 @@ structure Semant :> SEMANT = struct
 			val translated_hi = trexp hi
 			val translated_body = transExp (venv, tenv, body)
 		in
-			print("trexp A.ForExp...\n");
+			print("******************* trexp A.ForExp...\n");
 			checkInt(translated_lo, pos);
 			checkInt(translated_hi, pos);
 			checkUnit(translated_body, pos);
@@ -416,21 +416,21 @@ structure Semant :> SEMANT = struct
 		| trexp (A.BreakExp pos) 							= 
 		let
 		in
-			print("trexp A.BreakExp...\n");
+			print("******************* trexp A.BreakExp...\n");
 			{exp=Tr.nilExp(), ty=T.STRING} (* TODO *)
 		end
 		| trexp (A.ArrayExp {typ, size, init, pos}) 		= 
 		let
 			val array_type = find_actual_type(pos, tenv, typ)
 		in
-			print("trexp A.ArrayExp...\n");
+			print("******************* trexp A.ArrayExp...\n");
 			case array_type of
 				T.ARRAY(typ, uniq) => (
-					print("found array_type of type \n");
+					print("******************* found array_type of type \n");
 					{exp=Tr.nilExp(), ty=T.ARRAY(typ, uniq)} (* TODO *)
 				)
 				| _  => (					
-					print("did not find an array_type\n");
+					print("******************* did not find an array_type\n");
 					print_actual_ty(array_type);					
 					{exp=Tr.nilExp(), ty=T.NIL} (* TODO *)
 				)
@@ -461,7 +461,7 @@ structure Semant :> SEMANT = struct
 			{exp=Tr.nilExp(), ty=T.UNIT}
 		)
     in
-		print ("transExp body...\n");
+		print ("******************* transExp body...\n");
 		trexp(exp)
     end
 
@@ -472,7 +472,7 @@ structure Semant :> SEMANT = struct
 	let
 		val {exp,ty} = transExp (venv, tenv, init)
 	in
-		print ("inside transDec A.VarDec typ=NONE...\n");
+		print ("******************* inside transDec A.VarDec typ=NONE...\n");
 		{tenv = tenv, venv=S.enter(venv, name, E.VarEntry{ty=ty})}
 	end
 	(* next case is a case where a type is present, like "var a:int := 6", so we need to check
@@ -481,7 +481,7 @@ structure Semant :> SEMANT = struct
 	let
 		val {exp, ty} = transExp (venv, tenv, init)
 	in
-		print ("inside transDec, A.VarDec ,typ=SOME(symb, pos)...\n");
+		print ("******************* inside transDec, A.VarDec ,typ=SOME(symb, pos)...\n");
 
 		(case S.look (tenv,symb) of
 			NONE => (
@@ -493,9 +493,9 @@ structure Semant :> SEMANT = struct
 
 				(* if actual_ty(ty)<>actual_ty(my_ty) then (   *)
 					ErrorMsg.error pos ("type mismatch symb=" ^ S.name symb);
-					print("showing actual type for ty...\n");
+					print("******************* showing actual type for ty...\n");
 					print_actual_ty(ty);
-					print("showing actual type for the found my_ty...\n");
+					print("******************* showing actual type for the found my_ty...\n");
 					print_actual_ty(my_ty);
 					{tenv=tenv, venv=S.enter(venv, name, Env.VarEntry{ty=ty})} 
 				) else (
@@ -517,7 +517,7 @@ structure Semant :> SEMANT = struct
 				fun find_type(pos, tenv, ty) =
 					case S.look(tenv, ty) of 
 						SOME ty => (
-							print ("inside find_type, A.TypeDec ,S.look(tenv, ty) is SOME ty\n");
+							print ("******************* inside find_type, A.TypeDec ,S.look(tenv, ty) is SOME ty\n");
 							ty
 						)
 						| NONE   => (
@@ -528,16 +528,16 @@ structure Semant :> SEMANT = struct
 				val ty = case ty of 
 					A.NameTy (name, pos) => (
 						(* TODO - test it is working *)
-						print ("1 inside updateDec_for_name_type, A.TypeDec ,S.look(tenv, ty) is SOME ty\n");
+						print ("******************* 1 inside updateDec_for_name_type, A.TypeDec ,S.look(tenv, ty) is SOME ty\n");
 						T.NAME (name, ref (SOME (find_type (pos, tenv, name))))
 					)
 					| A.RecordTy fields => (
 						(* TODO - test it is working *)
-						print ("2 inside updateDec_for_name_type, A.TypeDec ,S.look(tenv, ty) is SOME ty\n");
+						print ("******************* 2 inside updateDec_for_name_type, A.TypeDec ,S.look(tenv, ty) is SOME ty\n");
 						T.RECORD (map (fn ({name, escape, typ, pos}) => (name, find_type (pos, tenv, typ))) fields, ref ())
 					)
 					| A.ArrayTy (name, pos) => (
-						print ("inside updateDec_for_name_type, A.TypeDec ,case ty of A.ArrayTy, name=" ^ S.name name ^ "\n");
+						print ("******************* inside updateDec_for_name_type, A.TypeDec ,case ty of A.ArrayTy, name=" ^ S.name name ^ "\n");
 						T.ARRAY (find_type (pos, tenv, name), ref ())
 					)
 			in
@@ -552,10 +552,10 @@ structure Semant :> SEMANT = struct
 		val tenv' = foldl enterTypeHeader tenv typeDecs
 
 		fun find_type_in_new_tenv {name, ty, pos} = (
-			print("find_type_in_new_tenv now trying to find name=" ^ S.name name ^ "\n");
+			print("******************* find_type_in_new_tenv now trying to find name=" ^ S.name name ^ "\n");
 			case S.look (tenv', name) of
 				NONE => (
-					print ("type not defined: arrtype");
+					ErrorMsg.error pos ("type not defined: arrtype");
 					()
 				)
 				| SOME my_ty=>  (
@@ -565,10 +565,10 @@ structure Semant :> SEMANT = struct
 		)
 
 		fun find_type_in_old_tenv {name, ty, pos} = (
-			print("find_type_in_old_tenv now trying to find name=" ^ S.name name ^ "\n");
+			print("******************* find_type_in_old_tenv now trying to find name=" ^ S.name name ^ "\n");
 			case S.look (tenv, name) of
 				NONE => (
-					print ("type not defined: " ^ S.name name ^ "\n");
+					print ("******************* type not defined: " ^ S.name name ^ "\n");
 					()
 				)
 				| SOME my_ty=>  (
@@ -581,8 +581,8 @@ structure Semant :> SEMANT = struct
 
 	in
 		updateDecs_for_venv (venv, tenv');
-		(* does the new type now exist in tenv` ?  need to verify *)
-		print("now trying to find it again...\n");
+		(* does the new type now exist in tenv` ?  need to verify... this is just to convince myself it is working *)
+		print("******************* now trying to find it again...\n");
 		(app find_type_in_old_tenv typeDecs);
 		(app find_type_in_new_tenv typeDecs);
 
@@ -592,9 +592,9 @@ structure Semant :> SEMANT = struct
 	end
 
 	| transDec(venv, tenv, A.FunctionDec[{name, params, body, pos, result=SOME(rt,pos1)}]) = 
-		(print ("transDec A.FunctionDec \n"); {tenv=tenv, venv=venv} ) (* TODO *)
+		(print ("******************* transDec A.FunctionDec \n"); {tenv=tenv, venv=venv} ) (* TODO *)
 	| transDec(venv, tenv, _) = 
-		(print ("transDec _ \n"); {tenv=tenv, venv=venv} ) (* TODO *)
+		(print ("******************* transDec _ \n"); {tenv=tenv, venv=venv} ) (* TODO *)
 
 
 	and 
