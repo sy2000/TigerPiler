@@ -591,8 +591,24 @@ structure Semant :> SEMANT = struct
 		{tenv=tenv', venv=venv}
 	end
 
-	| transDec(venv, tenv, A.FunctionDec[{name, params, body, pos, result=SOME(rt,pos1)}]) = 
-		(print ("******************* transDec A.FunctionDec \n"); {tenv=tenv, venv=venv} ) (* TODO *)
+	| transDec(venv, tenv, A.FunctionDec[{name, params, body, pos, result}]) = 
+	let
+		fun get_result_type(tenv, res) = (
+			case res of
+				NONE => (
+					print("******************* get_result_type: NONE type (procedure)");
+					T.UNIT
+				)
+				| SOME (rt, rt_pos) => (
+					print("******************* get_result_type: SOME type...");
+					find_actual_type(rt_pos, tenv, rt)
+				)
+		)
+	in
+		print ("******************* transDec A.FunctionDec \n"); 
+		get_result_type(tenv, result);
+		{tenv=tenv, venv=venv} (* TODO *)
+	end
 	| transDec(venv, tenv, _) = 
 		(print ("******************* transDec _ \n"); {tenv=tenv, venv=venv} ) (* TODO *)
 
