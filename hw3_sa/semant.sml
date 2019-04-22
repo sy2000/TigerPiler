@@ -604,10 +604,30 @@ structure Semant :> SEMANT = struct
 					find_actual_type(rt_pos, tenv, rt)
 				)
 		)
+		fun trans_param ({name, escape, typ, pos}:Absyn.field) = (
+			case S.look(tenv, typ) of
+				SOME(found_type) =>
+					{name=name, ty=found_type}
+				| NONE => (
+					ErrorMsg.error pos (" trans_param: type not defined:" ^ S.name typ); 
+					{name=name, ty=T.NIL}
+				)
+		)
+		val rt = get_result_type(tenv, result)
+		val params_types_list = map trans_param params
+		val venv_with_func_header = S.enter(venv, name, E.FunEntry {formals=map #ty params_types_list, result=rt})
+		fun enter_param({name, ty}, venv) = S.enter(venv, name, E.VarEntry {ty=ty})
+		val venv_body = foldl enter_param venv_with_func_header params_types_list
+		val translated_body = transExp(venv_body, tenv, body)
+		val body_type = #ty translated_body
 	in
 		print ("******************* transDec A.FunctionDec \n"); 
-		get_result_type(tenv, result);
-		{tenv=tenv, venv=venv} (* TODO *)
+		if body_type <> rt then (
+			ErrorMsg.error pos ("transDec A.FunctionDec: body_type <> rt");
+			{tenv=tenv, venv=venv}
+		) else (
+			{tenv=tenv, venv=venv_with_func_header} (* TODO *)
+		)		
 	end
 	| transDec(venv, tenv, _) = 
 		(print ("******************* transDec _ \n"); {tenv=tenv, venv=venv} ) (* TODO *)
