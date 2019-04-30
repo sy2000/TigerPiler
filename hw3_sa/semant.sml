@@ -24,6 +24,57 @@ structure Semant :> SEMANT = struct
     | type_to_string(T.RECORD(flds, uniq)) = "rec "
     | type_to_string(T.UNIT) = "unit"
 
+	fun actual_ty(ty) =
+		case ty of 
+			T.NIL => T.NIL
+			| T.RECORD(recs, uniq) => T.RECORD(recs, uniq)
+			| T.ARRAY(typ, uniq) => actual_ty(typ)
+			| T.UNIT => T.UNIT
+			| T.INT => T.INT
+			| T.STRING => T.STRING
+			| T.NAME(sym, typOpt) => (
+				case !typOpt of 
+					NONE => T.UNIT
+					| SOME(typ) => actual_ty(typ)
+			)
+
+	fun print_actual_ty(ty) =
+		case ty of 
+			T.NIL => (
+				print("******************* print_actual_ty ty=T.NIL\n");
+				T.NIL
+			)
+			| T.RECORD(recs, uniq) => (
+				print("******************* print_actual_ty ty=T.RECORD\n");
+				T.RECORD(recs, uniq)
+			)
+			| T.ARRAY(typ, uniq) => (
+				print("******************* print_actual_ty ty=T.ARRAY\n");
+				print_actual_ty(typ);
+				T.ARRAY(typ, uniq)				
+			)
+			| T.UNIT => ( 
+				print("******************* print_actual_ty ty=T.UNIT\n");
+				T.UNIT
+			)
+			| T.INT => (
+				print("******************* print_actual_ty ty=T.INT\n");
+				T.INT
+			)
+			| T.STRING => (
+				print("******************* print_actual_ty ty=T.STRING\n");
+				T.STRING
+			)
+			| T.NAME(sym, typOpt) => (
+				case !typOpt of 
+					NONE => (
+						print("******************* print_actual_ty ty=T.UNIT\n");
+						T.UNIT
+					)
+					| SOME(typ) => print_actual_ty(typ)
+			)
+
+
 	fun type_exists (tenv, n, pos) = 
 	let 
 		val ret=S.look (tenv, n)
@@ -40,7 +91,10 @@ structure Semant :> SEMANT = struct
 	fun checkInt ({exp, ty}, pos) = 
 		case ty of
 			T.INT => ()
-			| _ => ErrorMsg.error pos "expected int!"
+			| _ => (
+				print_actual_ty(ty);
+				ErrorMsg.error pos "expected int!"
+			)
 
 	fun checkString ({exp, ty}, pos) = 
 		case ty of
@@ -50,7 +104,10 @@ structure Semant :> SEMANT = struct
 	fun checkUnit ({exp, ty}, pos) = 
 		case ty of
 			T.UNIT => ()
-			| _ => ErrorMsg.error pos "expected unit!"
+			| _ => (
+				print_actual_ty(ty);
+				ErrorMsg.error pos "expected unit!"
+			)
 
 	fun exps_same_type ({exp=exp1,ty=type1}, {exp=exp2,ty=type2}, pos) =
 		if type1 = type2 then 
@@ -103,56 +160,6 @@ structure Semant :> SEMANT = struct
       | checkOpEq ({exp=_, ty=_}, {exp=_, ty=_}, pos) = 
 		  	ErrorMsg.error pos "checkOpEq error : eq/neq mismatch"
 
-	fun actual_ty(ty) =
-		case ty of 
-			T.NIL => T.NIL
-			| T.RECORD(recs, uniq) => T.RECORD(recs, uniq)
-			| T.ARRAY(typ, uniq) => actual_ty(typ)
-			| T.UNIT => T.UNIT
-			| T.INT => T.INT
-			| T.STRING => T.STRING
-			| T.NAME(sym, typOpt) => (
-				case !typOpt of 
-					NONE => T.UNIT
-					| SOME(typ) => actual_ty(typ)
-			)
-
-	fun print_actual_ty(ty) =
-		case ty of 
-			T.NIL => (
-				print("******************* print_actual_ty ty=T.NIL\n");
-				T.NIL
-			)
-			| T.RECORD(recs, uniq) => (
-				print("******************* print_actual_ty ty=T.RECORD\n");
-				T.RECORD(recs, uniq)
-			)
-			| T.ARRAY(typ, uniq) => (
-				print("******************* print_actual_ty ty=T.ARRAY\n");
-				print_actual_ty(typ);
-				T.ARRAY(typ, uniq)
-				
-			)
-			| T.UNIT => ( 
-				print("******************* print_actual_ty ty=T.UNIT\n");
-				T.UNIT
-			)
-			| T.INT => (
-				print("******************* print_actual_ty ty=T.INT\n");
-				T.INT
-			)
-			| T.STRING => (
-				print("******************* print_actual_ty ty=T.STRING\n");
-				T.STRING
-			)
-			| T.NAME(sym, typOpt) => (
-				case !typOpt of 
-					NONE => (
-						print("******************* print_actual_ty ty=T.UNIT\n");
-						T.UNIT
-					)
-					| SOME(typ) => print_actual_ty(typ)
-			)
 
 	fun find_actual_type(pos, tenv, my_type) =
 		case S.look (tenv, my_type) of
@@ -166,30 +173,43 @@ structure Semant :> SEMANT = struct
 				(* found_type *)
 			)
 
-	fun compare_actual_types(type1, type2) =
-		case type1 of 
-			T.ARRAY(base_type1, uniq) => (
-				case type2 of
-					T.ARRAY(base_type2, uniq) => (
+	fun compare_actual_types(type1, type2) = (
+	let
+		val found_type1 = print_actual_ty(type1);
+		val found_type2 = print_actual_ty(type2);
+	in
+		print("******************* compare_actual_types: printed both types...\n");
+		case found_type1 of 
+			T.ARRAY(base_type1, uniq1) => (
+				print("******************* compare_actual_types: type1 is an array\n");
+				case found_type2 of
+					T.ARRAY(base_type2, uniq2) => (
+						print("******************* compare_actual_types: type2 is an array\n");
 						if actual_ty(base_type1) <> actual_ty(base_type2) then
 							T.NIL
 						else
 							actual_ty(base_type1)
 					)
-					| _ => 
+					| _ => (
+						print("******************* compare_actual_types: type2 is NOT an array\n");
 						T.NIL
+					)
 			)
 			| _ => (
-				case type2 of
-					T.ARRAY(base_type2, uniq) => 
+				case found_type2 of
+					T.ARRAY(base_type2, uniq2) => 
 						T.NIL
 					| _ => (
 						if actual_ty(type1) <> actual_ty(type2) then
 							T.NIL
-						else
+						else (
+							print("******************* compare_actual_types: not an array but types match!\n");
 							actual_ty(type1)
+						)
 					)
 			)
+	end
+	)
 
 	fun my_transTy (tenv, t)=
 	let
@@ -289,9 +309,9 @@ structure Semant :> SEMANT = struct
 				in
 					print ("******************* A.IfExp... SOME else'\n"); 
 					checkInt(my_test, pos);
-					checkUnit(my_then, pos);
+					(* checkUnit(my_then, pos); *)
 					exps_same_type(my_then, my_else, pos);
-					{exp=Tr.nilExp(), ty=T.UNIT}
+					{exp=Tr.nilExp(), ty=(#ty my_then)}
 				end		
 			)
 		| trexp (A.SeqExp exps) 							=
@@ -337,7 +357,6 @@ structure Semant :> SEMANT = struct
 				)
 			)
 		end
-
 		| trexp (A.WhileExp {test, body, pos}) 				= 
 		let
 			val my_test = trexp test
@@ -396,6 +415,8 @@ structure Semant :> SEMANT = struct
 		in
 			print("******************* trexp A.AssignExp...\n");
 			if lefthand_type <> righthand_type then (
+				print_actual_ty(lefthand_type);
+				print_actual_ty(righthand_type);
 				ErrorMsg.error pos ("trexp A.AssignExp error: lefthand_type <> righthand_type");
 				{exp=Tr.nilExp(), ty=T.UNIT}
 			) else
@@ -440,8 +461,13 @@ structure Semant :> SEMANT = struct
 
 		and
 		trvar (A.SimpleVar(id,pos)) = 
-			(case S.look(venv, id) of
-				SOME (E.VarEntry{ty}) => {exp=Tr.nilExp(), ty=T.INT}
+			(
+				print("******************* trvar (A.SimpleVar\n");
+				case S.look(venv, id) of
+				SOME (E.VarEntry{ty}) => (
+					print_actual_ty(ty);
+					{exp=Tr.nilExp(), ty=actual_ty(ty)}
+				)
 				| _ => (
 					ErrorMsg.error pos ("var undefined... " ^ S.name id); 
 					{exp=Tr.nilExp(), ty=T.INT}
@@ -451,12 +477,29 @@ structure Semant :> SEMANT = struct
 		let
 			val var' = trvar var
 		in
-			(case var' of
-				{exp, ty=record as T.RECORD (fields, _)} => {exp=Tr.nilExp(), ty=record}
-				| _ => (ErrorMsg.error pos "var not found"; {exp=Tr.nilExp(), ty=T.UNIT})
+			(
+				print("******************* trvar (A.FieldVar\n");
+				print_actual_ty(#ty var');
+				case var' of
+				{exp, ty=record as T.RECORD (fields, _)} => (
+					case List.find (fn (fSym, fTy) => fSym = id) fields of 
+						SOME(found_symbol, found_type) => (
+							print_actual_ty(found_type);
+							{exp=Tr.nilExp(), ty=actual_ty (found_type)}
+						)
+						| NONE => (
+							ErrorMsg.error pos ("field " ^ S.name id ^ " does not exist"); 
+							{exp=Tr.nilExp(), ty=T.UNIT}
+						)
+            	)
+				| _ => (
+					ErrorMsg.error pos ("var not found ") ; 
+					{exp=Tr.nilExp(), ty=T.UNIT}
+				)
 			)
 		end
 		| trvar (A.SubscriptVar(var, exp,pos)) = (
+			print("******************* trvar (A.SubscriptVar\n");
 			checkInt(trexp exp, pos);
 			{exp=Tr.nilExp(), ty=T.UNIT}
 		)
@@ -489,9 +532,7 @@ structure Semant :> SEMANT = struct
 				{tenv=tenv, venv=S.enter(venv, name, Env.VarEntry{ty=ty})}
 			)
 			| SOME my_ty=>  
-				if compare_actual_types(ty,my_ty) <> T.NIL then (
-
-				(* if actual_ty(ty)<>actual_ty(my_ty) then (   *)
+				if compare_actual_types(ty,my_ty) = T.NIL then (
 					ErrorMsg.error pos ("type mismatch symb=" ^ S.name symb);
 					print("******************* showing actual type for ty...\n");
 					print_actual_ty(ty);
@@ -499,7 +540,7 @@ structure Semant :> SEMANT = struct
 					print_actual_ty(my_ty);
 					{tenv=tenv, venv=S.enter(venv, name, Env.VarEntry{ty=ty})} 
 				) else (
-					();
+					print("******************* variable declaration successful, added var " ^ S.name name ^ "\n");
 					{tenv=tenv, venv=S.enter(venv, name, Env.VarEntry{ty=ty})} 
 				)
 		)
@@ -565,10 +606,10 @@ structure Semant :> SEMANT = struct
 		)
 
 		fun find_type_in_old_tenv {name, ty, pos} = (
-			print("******************* find_type_in_old_tenv now trying to find name=" ^ S.name name ^ "\n");
+			print("******************* find_type_in_old_tenv: find_type_in_old_tenv now trying to find name=" ^ S.name name ^ "\n");
 			case S.look (tenv, name) of
 				NONE => (
-					print ("******************* type not defined: " ^ S.name name ^ "\n");
+					print ("******************* find_type_in_old_tenv: type was not supposed to be defined: " ^ S.name name ^ "\n");
 					()
 				)
 				| SOME my_ty=>  (
@@ -600,10 +641,11 @@ structure Semant :> SEMANT = struct
 					T.UNIT
 				)
 				| SOME (rt, rt_pos) => (
-					print("******************* get_result_type: SOME type...");
+					print("******************* get_result_type: SOME type...\n");
 					find_actual_type(rt_pos, tenv, rt)
 				)
 		)
+		(*fun trans_param {param_name, param_type, pos} = (   *)
 		fun trans_param ({name, escape, typ, pos}:Absyn.field) = (
 			case S.look(tenv, typ) of
 				SOME(found_type) =>
@@ -622,13 +664,17 @@ structure Semant :> SEMANT = struct
 		val body_type = #ty translated_body
 	in
 		print ("******************* transDec A.FunctionDec \n"); 
+		 		
 		if body_type <> rt then (
 			ErrorMsg.error pos ("transDec A.FunctionDec: body_type <> rt");
+			print_actual_ty(body_type);
+			print_actual_ty(rt);
 			{tenv=tenv, venv=venv}
 		) else (
-			{tenv=tenv, venv=venv_with_func_header} (* TODO *)
-		)		
+			{tenv=tenv, venv=venv_with_func_header}
+		)               
 	end
+
 	| transDec(venv, tenv, _) = 
 		(print ("******************* transDec _ \n"); {tenv=tenv, venv=venv} ) (* TODO *)
 
