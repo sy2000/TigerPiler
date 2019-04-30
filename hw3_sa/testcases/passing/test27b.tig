@@ -1,0 +1,13 @@
+/* valid procedure - function does not return a value */
+let
+	function printint(i: int) =
+	let
+	in 
+		if i<0 then 
+			print("-")
+		else 
+			print("0")
+	end
+in
+	printint(5)
+end

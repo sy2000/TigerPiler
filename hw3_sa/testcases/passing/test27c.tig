@@ -1,0 +1,9 @@
+/* valid types and function declaration */
+let
+	var a:=0
+	type int_type = int
+
+	function g(b:int):int_type = a + b 
+in
+ g(2)
+end

@@ -1,0 +1,9 @@
+/* failing semantic analysis: argument type not defined */
+let
+	var a:=0
+	type int_type = int
+
+	function g(b:bla_type):int_type = a + b 
+in
+ g(2)
+end

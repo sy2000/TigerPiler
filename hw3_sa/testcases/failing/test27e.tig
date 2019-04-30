@@ -1,0 +1,8 @@
+/* fails semantic analysis: function return type differs than body */
+let
+	var a:=0
+
+	function g(b:int):string = a + b 
+in
+ g(2)
+end
