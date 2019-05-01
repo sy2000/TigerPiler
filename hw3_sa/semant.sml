@@ -500,8 +500,16 @@ structure Semant :> SEMANT = struct
 		end
 		| trvar (A.SubscriptVar(var, exp,pos)) = (
 			print("******************* trvar (A.SubscriptVar\n");
-			checkInt(trexp exp, pos);
-			{exp=Tr.nilExp(), ty=T.UNIT}
+			(case trvar var of
+				{exp=(), ty=T.ARRAY(array_type, unique)} => (
+					checkInt(trexp exp, pos); 
+					{exp=(), ty=actual_ty array_type}
+				)
+				| {exp=_, ty=_} => (
+					ErrorMsg.error pos ("SubscriptVar mismatch: requires array"); 
+					{exp=(), ty=T.NIL}
+				)
+			)
 		)
     in
 		print ("******************* transExp body...\n");
@@ -588,19 +596,7 @@ structure Semant :> SEMANT = struct
 			print("******************* find_type_in_new_tenv now trying to find name=" ^ S.name name ^ "\n");
 			case S.look (tenv', name) of
 				NONE => (
-					ErrorMsg.error pos ("type not defined: arrtype");
-					()
-				)
-				| SOME my_ty=>  (
-					print_actual_ty(my_ty);
-					()
-				)
-		)
-		fun find_type_in_old_tenv {name, ty, pos} = (
-			print("******************* find_type_in_old_tenv: find_type_in_old_tenv now trying to find name=" ^ S.name name ^ "\n");
-			case S.look (tenv, name) of
-				NONE => (
-					print ("******************* find_type_in_old_tenv: type was not supposed to be defined: " ^ S.name name ^ "\n");
+					ErrorMsg.error pos ("type not defined");
 					()
 				)
 				| SOME my_ty=>  (
@@ -612,7 +608,6 @@ structure Semant :> SEMANT = struct
 		updateDecs_for_venv (venv, tenv');
 		(* does the new type now exist in tenv` ?  need to verify... this is just to convince myself it is working *)
 		print("******************* now trying to find it again...\n");
-		(app find_type_in_old_tenv typeDecs);
 		(app find_type_in_new_tenv typeDecs);
 		{tenv=tenv', venv=venv}
 	end
