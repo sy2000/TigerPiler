@@ -507,9 +507,7 @@ structure Semant :> SEMANT = struct
 		print ("******************* transExp body...\n");
 		trexp(exp)
     end
-
 	and
-
 	transDec (venv, tenv, A.VarDec{name, typ=NONE, init,... }) = 
 	(* first case is a simple declaration, like "var a:=0" *)
 	let
@@ -525,7 +523,6 @@ structure Semant :> SEMANT = struct
 		val {exp, ty} = transExp (venv, tenv, init)
 	in
 		print ("******************* inside transDec, A.VarDec ,typ=SOME(symb, pos)...\n");
-
 		(case S.look (tenv,symb) of
 			NONE => (
 				ErrorMsg.error pos ("type not defined: " ^ S.name symb);
@@ -544,10 +541,7 @@ structure Semant :> SEMANT = struct
 					{tenv=tenv, venv=S.enter(venv, name, Env.VarEntry{ty=ty})} 
 				)
 		)
-
 	end
-
-
 
 	| transDec(venv, tenv, A.TypeDec typeDecs) =
 	let
@@ -588,10 +582,8 @@ structure Semant :> SEMANT = struct
 		in
 			app updateDec_for_name_type typeDecs (* applies updateDec_for_name_type to all elements of typeDecs *)
 		end
-
 		fun enterTypeHeader ({name, ty, pos}, tenv) = S.enter (tenv, name, T.NAME (name, ref NONE))
 		val tenv' = foldl enterTypeHeader tenv typeDecs
-
 		fun find_type_in_new_tenv {name, ty, pos} = (
 			print("******************* find_type_in_new_tenv now trying to find name=" ^ S.name name ^ "\n");
 			case S.look (tenv', name) of
@@ -604,7 +596,6 @@ structure Semant :> SEMANT = struct
 					()
 				)
 		)
-
 		fun find_type_in_old_tenv {name, ty, pos} = (
 			print("******************* find_type_in_old_tenv: find_type_in_old_tenv now trying to find name=" ^ S.name name ^ "\n");
 			case S.look (tenv, name) of
@@ -617,18 +608,12 @@ structure Semant :> SEMANT = struct
 					()
 				)
 		)
-
-
-
-	in
+	in (* of transDec(venv, tenv, A.TypeDec typeDecs) *)
 		updateDecs_for_venv (venv, tenv');
 		(* does the new type now exist in tenv` ?  need to verify... this is just to convince myself it is working *)
 		print("******************* now trying to find it again...\n");
 		(app find_type_in_old_tenv typeDecs);
 		(app find_type_in_new_tenv typeDecs);
-
-
-
 		{tenv=tenv', venv=venv}
 	end
 
