@@ -1,0 +1,10 @@
+/* invalid hi for i */
+
+let
+	var a:= 0
+in 
+	for i:=0 to " " do (
+		a:=a+1;
+		()
+	)
+end
