@@ -75,14 +75,15 @@ structure Semant :> SEMANT = struct
 			)
 
 
-	fun type_exists (tenv, n, pos) = 
+	fun type_exists (tenv, type_name, pos) = 
 	let 
-		val ret=S.look (tenv, n)
+		val ret=S.look (tenv, type_name)
 	in
 		(case ret of
-			SOME ty2 => ty2
+			SOME found_type => 
+				found_type
 			| NONE => (
-				ErrorMsg.error pos ("did not find type " ^ S.name n) ; 
+				ErrorMsg.error pos ("type_exists: did not find type " ^ S.name type_name) ; 
 				Types.UNIT
 			)
 		)
@@ -493,7 +494,7 @@ structure Semant :> SEMANT = struct
 						)
             	)
 				| _ => (
-					ErrorMsg.error pos ("var not found ") ; 
+					ErrorMsg.error pos ("var not a record") ; 
 					{exp=Tr.nilExp(), ty=T.UNIT}
 				)
 			)
@@ -557,31 +558,21 @@ structure Semant :> SEMANT = struct
 		let
 			fun updateDec_for_name_type {name, ty, pos} = 
 			let
-				fun find_type(pos, tenv, ty) =
-					case S.look(tenv, ty) of 
-						SOME ty => (
-							print ("******************* inside find_type, A.TypeDec ,S.look(tenv, ty) is SOME ty\n");
-							ty
-						)
-						| NONE   => (
-							ErrorMsg.error pos ("Type '" ^ S.name ty ^ "' is not defined"); 
-							T.NIL
-						)
-				val T.NAME(tyName, tyRef) = find_type (pos, tenv, name)
+				val T.NAME(tyName, tyRef) =  type_exists (tenv, name, pos)
 				val ty = case ty of 
 					A.NameTy (name, pos) => (
 						(* TODO - test it is working *)
 						print ("******************* 1 inside updateDec_for_name_type, A.TypeDec ,S.look(tenv, ty) is SOME ty\n");
-						T.NAME (name, ref (SOME (find_type (pos, tenv, name))))
+						T.NAME (name, ref (SOME ( type_exists (tenv, name, pos) )))
 					)
 					| A.RecordTy fields => (
 						(* TODO - test it is working *)
 						print ("******************* 2 inside updateDec_for_name_type, A.TypeDec ,S.look(tenv, ty) is SOME ty\n");
-						T.RECORD (map (fn ({name, escape, typ, pos}) => (name, find_type (pos, tenv, typ))) fields, ref ())
+						T.RECORD (map (fn ({name, escape, typ, pos}) => (name,  type_exists (tenv, typ, pos))) fields, ref ())
 					)
 					| A.ArrayTy (name, pos) => (
 						print ("******************* inside updateDec_for_name_type, A.TypeDec ,case ty of A.ArrayTy, name=" ^ S.name name ^ "\n");
-						T.ARRAY (find_type (pos, tenv, name), ref ())
+						T.ARRAY ( type_exists (tenv, name, pos), ref ())
 					)
 			in
 				print_actual_ty(ty);
@@ -594,19 +585,12 @@ structure Semant :> SEMANT = struct
 		val tenv' = foldl enterTypeHeader tenv typeDecs
 		fun find_type_in_new_tenv {name, ty, pos} = (
 			print("******************* find_type_in_new_tenv now trying to find name=" ^ S.name name ^ "\n");
-			case S.look (tenv', name) of
-				NONE => (
-					ErrorMsg.error pos ("type not defined");
-					()
-				)
-				| SOME my_ty=>  (
-					print_actual_ty(my_ty);
-					()
-				)
+			type_exists(tenv', name, pos);
+			()
 		)
 	in (* of transDec(venv, tenv, A.TypeDec typeDecs) *)
 		updateDecs_for_venv (venv, tenv');
-		(* does the new type now exist in tenv` ?  need to verify... this is just to convince myself it is working *)
+		(* debug: does the new type now exist in tenv` ?  need to verify... this is just to convince myself it is working *)
 		print("******************* now trying to find it again...\n");
 		(app find_type_in_new_tenv typeDecs);
 		{tenv=tenv', venv=venv}
